@@ -1,0 +1,250 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>Lightmap in Unity</title>
+
+		<link rel="stylesheet" href="reveal.js-3.7.0/css/reveal.css">
+		<link rel="stylesheet" href="reveal.js-3.7.0/css/theme/black.css">
+
+		<!-- Theme used for syntax highlighting of code -->
+		<link rel="stylesheet" href="reveal.js-3.7.0/lib/css/zenburn.css">
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? 'reveal.js-3.7.0/css/print/pdf.css' : 'reveal.js-3.7.0/css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section data-markdown>
+					# Unity 光照贴图
+					by [Oliver](https://flyingcatslb.github.io/presentation)
+				</section>
+				<section data-markdown>
+					### Contents
+					* HDR
+
+					* Unity的光照系统
+
+					* 生死1与手游的光照实现
+
+					* Unity2018的光照新特性
+
+					* Gamma vs Linear
+				</section>
+
+				<section>
+					<section data-markdown>
+						### LDR
+
+						* 低动态范围（Low-Dynamic Range）
+
+						* 使用8位数据来表示一个颜色通道
+
+						* 只能表示$2^8 = 256$ 种亮度
+
+						* 常用数据格式
+							* jpg, tif, png-8bit
+					</section>
+					<section data-markdown>
+						### LDR存在的问题
+
+						* 自然界中最亮的物体和最暗的物体亮度比位$10^8$
+
+						* 人眼能感受到的亮度比范围为$10^5$
+
+						* LDR的256种亮度无法满足需求
+					</section>
+					<section data-markdown>
+						### HDR
+
+						* 高动态范围（High-Dynamic Range）
+
+						* 使用16位数据来表示一个颜色通道
+
+						* 最大能表示$2^{16}=65536$ 种亮度
+
+						* HDRI（High-Dynamic Range Image）格式
+						 * RadianceRGBE .hdr
+						 * OpenExr .exr
+						 * FloatTiff .tiff
+						 * png-16bit
+					</section>
+					<section data-markdown>
+						### OpenEXR
+
+						* 由工业光魔公司（Industrial Light & Magic）发明的开源HDRI格式
+
+						* 支持16位，32位HDR
+
+						* 其中的16位格式又被称为half，与cg语言中的half数据类型对应
+
+						* Unity生成的光照贴图是32位HDR格式，后缀名.exr
+
+						[OpenExr](https://github.com/openexr/openexr)
+					</section>
+				</section>
+				<section>
+					<section data-markdown>
+						### HDR的编码（Encoding）
+
+						* 由于HDR数据量大，性能开销较大
+
+						* 实时渲染时需要将HDR转换成单通道8位数据的LDR，这一过程又称HDR编码
+
+						* Unity中的主要编码方式
+
+							* RGBM
+								适用于PC, XBOX, PlayStation等平台
+
+							* dLDR
+								适用于安卓，ios等平台
+					</section>
+					<section data-markdown>
+						### RGBM编码
+
+						* RGB三个存储颜色值，每个通道8位数据
+
+						* Alpha通道存储一个系数M(multiplier)
+
+						* 解码算法
+
+							*Gamma空间 $color.rgb = 5 \cdot lightmap.a \cdot lightmap.rgb$
+							*Linear空间 $color.rgb = 5^{2.2} \cdot lightmap.a^5 \cdot lightmap.rgb$
+					</section>
+					<section data-markdown>
+						### dLDR编码
+
+						* RGB三个存储颜色值，每个通道8位数据
+
+						* 用一个统一的系数与颜色相乘
+
+						* 解码算法
+
+							*Gamma空间 $color.rgb = 2 \cdot lightmap.rgb$
+							*Linear空间 $color.rgb = 2^{2.2} \cdot lightmap.rgb$
+					</section>
+				</section>
+				<section>
+					<section data-markdown>
+						### HDR图片的压缩（Compression）
+
+						HDR编码 | 压缩算法 | 单通道位数 | 适用平台
+						--- | --- | --- | ---
+						原生HDR | BC6H | 8 | PC，PSStation， XBox
+						RGBM | DXT5 | 8 | PC，PSStation， XBox
+						dLDR | ETC | 4 | Android
+						dLDR | PVRTC | 4 | IOS
+
+					</section>
+				</section>
+				<section>
+					<section data-markdown>
+						### Unity的光照系统
+
+						版本 | 光照系统 | 开发商 | 功能
+						--- | --- | --- | ---
+						Unity4 | beast | Autodesk |
+						Unity5 | enlighten | Arm |
+						Unity2017 | progressive |  |
+					</section>
+					<section data-markdown>
+						### 光照系统功能对比
+
+						功能 | beast | enlighten
+						--- | --- | ---
+						HDR | 有 | 有
+						烘焙GI | 有 | 有
+						实时GI |  | 有
+						环境遮挡AO | 有 | 有
+						物理渲染PBR | | 有
+						RGBM编码 |  | 有
+						dLDR编码 | 有 | 有
+					</section>
+					<section data-markdown>
+						### UnityHDR的开关
+						PlayerSettings => OtherSettings => Rendering
+
+						属性 | 功能
+						--- | ---
+						High Quality | 开启HDR
+						Normal Quality | HDR转LDR
+
+
+						![](pics/lightmap/unity_lightmap_encoding.png)
+					</section>
+					<section data-markdown>
+						### Unity光照贴图压缩开关
+						Window => Rendering => LightingSettings
+
+						![](pics/lightmap/unity_lightmap_compress.png)
+					</section>
+				</section>
+				<section>
+					<section data-markdown>
+						### 生死1与手游的光照实现
+						* 使用Unity4的beast系统进行光照贴图烘焙
+
+						* 将HDR的光照图转换成RGBM的编码
+
+						* 核心算法
+
+							$color.rgb = 8 \cdot lightmap.a \cdot lightmap.rgb$
+					</section>
+					<section data-markdown>
+						### 存在的问题
+					</section>
+					<section data-markdown>
+						### 推荐流程升级
+
+						* 建议升级到Unity2018
+					</section>
+				</section>
+				<section>
+					<section data-markdown>
+						### Unity2018的光照新特性
+
+						 * 基于CPU的渐进式烘焙（Progressive CPU）
+
+
+					</section>
+					<section data-markdown>
+						### Unity2018的光照新特性
+
+						* 基于GPU的渐进式烘焙（Progressive GPU）
+
+						 * 利用GPU进行光照图烘焙
+
+						 * 大幅提升烘焙速度
+					</section>
+				</section>
+			</div>
+		</div>
+
+		<script src="reveal.js-3.7.0/lib/js/head.min.js"></script>
+		<script src="reveal.js-3.7.0/js/reveal.js"></script>
+
+		<script>
+			// More info about config & dependencies:
+			// - https://github.com/hakimel/reveal.js#configuration
+			// - https://github.com/hakimel/reveal.js#dependencies
+			Reveal.initialize({
+				dependencies: [
+					{ src: 'reveal.js-3.7.0/plugin/markdown/marked.js' },
+					{ src: 'reveal.js-3.7.0/plugin/markdown/markdown.js' },
+					{ src: 'reveal.js-3.7.0/plugin/notes/notes.js', async: true },
+					{ src: 'reveal.js-3.7.0/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'reveal.js-3.7.0/plugin/math/math.js', async: true }
+				]
+			});
+		</script>
+	</body>
+</html>
